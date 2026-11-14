@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Calendar, Pill, DollarSign, Shield, PlusCircle, Menu, X, Users, Globe, Building2, CheckCircle, BarChart3, Download, Archive, ChevronDown, FileText, Search } from 'lucide-react';
+import { api } from './api';
 
 export default function App() {
   const [role, setRole] = useState('admin');
@@ -9,48 +10,16 @@ export default function App() {
   // Состояния для кастомных выпадающих меню
   const [openDropdownId, setOpenDropdownId] = useState(null);
 
-  // База пациентов
-  const [patientsBase, setPatientsBase] = useState([
-    { id: 1, name: 'Елена Малышева', phone: '+7 (999) 111-22-33', birth: '1975-05-12', diagnosis: 'Глубокий кариес зуба #36', notes: 'Установлена световой пломба. Рекомендован осмотр через полгода.' },
-    { id: 2, name: 'Иван Петров', phone: '+7 (999) 222-33-44', birth: '1988-09-20', diagnosis: 'Здоров', notes: 'Проведена плановая гигиена полости рта.' },
-    { id: 3, name: 'Светлана Соколова', phone: '+7 (999) 333-44-55', birth: '1992-12-04', diagnosis: 'Адентия зуба #46', notes: 'Подготовка к имплантации. Сделано КТ.' }
-  ]);
-
-  // Актуальные записи на сегодня
-  const [appointments, setAppointments] = useState([
-    { id: 1, patient: 'Елена Малышева', doctor: 'Дмитрий Зубов', time: '10:00', room: 'Кабинет №1', service: 'Лечение кариеса', status: 'Ожидает' },
-    { id: 2, patient: 'Иван Петров', doctor: 'Ольга Васильева', time: '11:30', room: 'Рентген-кабинет', service: 'КТ челюсти', status: 'Завершен' },
-    { id: 3, patient: 'Светлана Соколова', doctor: 'Дмитрий Зубов', time: '14:00', room: 'Кабинет №1', service: 'Имплантация', status: 'Завершен' }
-  ]);
-
-  // Архив всех записей с разбивкой по годам и месяцам
-  const [archiveRecords] = useState([
-    { id: 101, year: '2026', month: 'Ноябрь', date: '05.11.2026', patient: 'Алексей Смирнов', doctor: 'Дмитрий Зубов', service: 'Имплантация', cost: '45 000 ₽', status: 'Завершен' },
-    { id: 102, year: '2026', month: 'Ноябрь', date: '02.11.2026', patient: 'Мария Иванова', doctor: 'Ольга Васильева', service: 'Лечение кариеса', cost: '8 500 ₽', status: 'Завершен' },
-    { id: 103, year: '2026', month: 'Октябрь', date: '28.10.2026', patient: 'Елена Малышева', doctor: 'Ольга Васильева', service: 'Профессиональная гигиена', cost: '6 000 ₽', status: 'Завершен' },
-    { id: 104, year: '2026', month: 'Октябрь', date: '14.10.2026', patient: 'Дмитрий Орлов', doctor: 'Дмитрий Зубов', service: 'КТ челюсти', cost: '4 200 ₽', status: 'Завершен' },
-    { id: 105, year: '2025', month: 'Декабрь', date: '19.12.2025', patient: 'Светлана Соколова', doctor: 'Дмитрий Зубов', service: 'Консультация и осмотр', cost: '2 000 ₽', status: 'Завершен' }
-  ]);
-
-  // Заявки с сайта
-  const [onlineLeads, setOnlineLeads] = useState([
-    { id: 1, patient: 'Максим Сергеев', phone: '+7 (900) 555-66-77', service: 'Профессиональная гигиена', date: 'Завтра, 12:00' },
-    { id: 2, patient: 'Анна Ковалёва', phone: '+7 (901) 444-33-22', service: 'Консультация и осмотр', date: 'Послезавтра, 10:00' }
-  ]);
-
-  // Склад
-  const [pharmacy, setPharmacy] = useState([
-    { id: 1, name: 'Ультракаин (анестетик)', stock: 45, unit: 'ампул' },
-    { id: 2, name: 'Имплант Straumann', stock: 12, unit: 'шт.' },
-    { id: 3, name: 'Коффердам (набор)', stock: 30, unit: 'шт.' }
-  ]);
-
-  // Персонал
-  const staffList = [
-    { id: 1, name: 'Дмитрий Зубов', role: 'Врач-стоматолог (Хирург)', room: 'Кабинет №1' },
-    { id: 2, name: 'Ольга Васильева', role: 'Врач-стоматолог (Терапевт)', room: 'Кабинет №2' },
-    { id: 3, name: 'Сергей Новиков', role: 'Рентген-лаборант', room: 'Рентген-кабинет' }
-  ];
+  const [patientsBase, setPatientsBase] = useState([]);
+  const [appointments, setAppointments] = useState([]);
+  const [archiveRecords, setArchiveRecords] = useState([]);
+  const [onlineLeads, setOnlineLeads] = useState([]);
+  const [pharmacy, setPharmacy] = useState([]);
+  const [staffList, setStaffList] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  const [services, setServices] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
+  const [loadError, setLoadError] = useState('');
 
   // Состояния формы новой записи
   const [patientInput, setPatientInput] = useState('');
@@ -90,13 +59,73 @@ export default function App() {
   const [warehouseSearch, setWarehouseSearch] = useState('');
 
   // Списки вариантов
-  const roomsList = ['Кабинет №1', 'Кабинет №2', 'Рентген-кабинет'];
+  const roomsList = rooms.map((room) => room.name);
   const statusesList = ['Ожидает', 'Завершен', 'Отменен'];
-  const doctorsList = ['Дмитрий Зубов', 'Ольга Васильева'];
-  const servicesList = ['Консультация и осмотр', 'Лечение кариеса', 'Профессиональная гигиена', 'Имплантация', 'КТ челюсти'];
+  const doctorsList = staffList.filter((person) => person.role.includes('Врач')).map((person) => person.name);
+  const servicesList = services.map((item) => item.name);
   const periodsList = ['За сегодня', 'За неделю', 'За месяц', 'За год'];
-  const yearsList = ['Все годы', '2026', '2025'];
-  const monthsList = ['Все месяцы', 'Ноябрь', 'Октябрь', 'Декабрь'];
+  const yearsList = ['Все годы', ...Array.from(new Set(archiveRecords.map((rec) => rec.year))).sort((a, b) => b.localeCompare(a))];
+  const monthsList = ['Все месяцы', 'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+
+  async function loadCore() {
+    const [patients, appts, leads, items, staff, roomRows, serviceRows, archive] = await Promise.all([
+      api.listPatients(),
+      api.listAppointments(),
+      api.listLeads(),
+      api.listPharmacy(),
+      api.listStaff(),
+      api.listRooms(),
+      api.listServices(),
+      api.listArchive(),
+    ]);
+    setPatientsBase(patients ?? []);
+    setAppointments(appts ?? []);
+    setOnlineLeads(leads ?? []);
+    setPharmacy(items ?? []);
+    setStaffList(staff ?? []);
+    setRooms(roomRows ?? []);
+    setServices(serviceRows ?? []);
+    setArchiveRecords(archive ?? []);
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    loadCore()
+      .then(() => {
+        if (!cancelled) setLoadError('');
+      })
+      .catch((err) => {
+        if (!cancelled) setLoadError(err.message || 'Не удалось загрузить данные');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.analytics(reportPeriod)
+      .then((data) => {
+        if (!cancelled) setAnalytics(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setLoadError(err.message || 'Не удалось загрузить аналитику');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [reportPeriod]);
+
+  async function changeAppointment(id, patch) {
+    try {
+      const updated = await api.updateAppointment(id, patch);
+      setAppointments((prev) => prev.map((item) => (item.id === id ? updated : item)));
+      setOpenDropdownId(null);
+      setLoadError('');
+    } catch (err) {
+      setLoadError(err.message || 'Не удалось обновить запись');
+    }
+  }
 
   const filteredPatients = patientsBase.filter(p => 
     p.name.toLowerCase().includes(patientInput.toLowerCase())
@@ -120,39 +149,27 @@ export default function App() {
     }
   };
 
-  const handleAddAppointment = (e) => {
+  const handleAddAppointment = async (e) => {
     e.preventDefault();
     if (!patientInput.trim()) return;
-    
+
     const formattedTime = `${hourInput.padStart(2, '0')}:${minuteInput.padStart(2, '0')}`;
-    const newItem = {
-      id: Date.now(),
-      patient: patientInput,
-      doctor: newDoctor,
-      time: formattedTime,
-      room: newRoom,
-      service: newService,
-      status: 'Ожидает'
-    };
-
-    setAppointments([newItem, ...appointments]);
-
-    // Сразу добавляем в общую базу клиентов при первом же создании записи, если его там еще нет
-    const existsInBase = patientsBase.some(p => p.name.toLowerCase() === patientInput.toLowerCase());
-    if (!existsInBase) {
-      setPatientsBase([...patientsBase, { 
-        id: Date.now(), 
-        name: patientInput, 
-        phone: '+7 (999) 000-00-00', 
-        birth: '1995-01-01',
-        diagnosis: 'Первичный осмотр / Обращение', 
-        notes: `Записан на услугу: ${newService}` 
-      }]);
+    try {
+      await api.createAppointment({
+        patient: patientInput.trim(),
+        doctor: newDoctor,
+        time: formattedTime,
+        room: newRoom,
+        service: newService,
+      });
+      await loadCore();
+      setLoadError('');
+      setBookingSuccess(true);
+      setPatientInput('');
+      setTimeout(() => setBookingSuccess(false), 3000);
+    } catch (err) {
+      setLoadError(err.message || 'Не удалось создать запись');
     }
-
-    setBookingSuccess(true);
-    setPatientInput('');
-    setTimeout(() => setBookingSuccess(false), 3000);
   };
 
   const selectTab = (tab) => {
@@ -299,6 +316,11 @@ export default function App() {
         </header>
 
         <main className="p-4 sm:p-8 flex flex-col w-full items-center">
+          {loadError && (
+            <div className="mb-4 w-full max-w-6xl p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-sm">
+              {loadError}
+            </div>
+          )}
           
           {/* КАБИНЕТ ВРАЧА: МОЕ РАСПИСАНИЕ */}
           {activeTab === 'doctor_schedule' && role === 'doctor' && (
@@ -410,9 +432,16 @@ export default function App() {
                       </div>
 
                       <button 
-                        onClick={() => {
-                          setPatientsBase(patientsBase.map(p => p.id === selectedPatientCard.id ? {...p, diagnosis: editDiagnosis, notes: editNotes} : p));
-                          setCardSaveSuccess(true);
+                        onClick={async () => {
+                          try {
+                            const saved = await api.updateCard(selectedPatientCard.id, { diagnosis: editDiagnosis, notes: editNotes });
+                            setPatientsBase((prev) => prev.map((p) => (p.id === saved.id ? saved : p)));
+                            setSelectedPatientCard(saved);
+                            setCardSaveSuccess(true);
+                            setLoadError('');
+                          } catch (err) {
+                            setLoadError(err.message || 'Не удалось сохранить карту');
+                          }
                         }}
                         className="px-5 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-sm font-medium transition cursor-pointer shadow-sm"
                       >
@@ -514,7 +543,10 @@ export default function App() {
                       </div>
 
                       <button 
-                        onClick={() => alert('Отчет успешно сформирован и подготовлен к скачиванию в Excel/PDF!')}
+                        onClick={() => {
+                          if (!analytics) return;
+                          alert(`Отчет «${analytics.period}»\nСтоматология: ${analytics.dentalRevenue}\nАптека: ${analytics.pharmacyRevenue}\nИтого: ${analytics.totalRevenue}`);
+                        }}
                         className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-sm font-medium transition cursor-pointer flex items-center gap-2 shadow-sm"
                       >
                         <Download className="w-4 h-4" /> Скачать отчет (Excel / PDF)
@@ -525,17 +557,17 @@ export default function App() {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
                       <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Выручка по стоматологии</p>
-                      <p className="text-2xl font-extrabold text-slate-900 mt-2">142 500 ₽</p>
-                      <p className="text-xs text-emerald-600 font-semibold mt-1">↑ +12% к прошлому периоду</p>
+                      <p className="text-2xl font-extrabold text-slate-900 mt-2">{analytics?.dentalRevenue ?? '—'}</p>
+                      <p className="text-xs text-slate-500 font-semibold mt-1">{analytics?.dentalDelta ?? 'Загрузка...'}</p>
                     </div>
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
                       <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Выручка аптеки / склада</p>
-                      <p className="text-2xl font-extrabold text-slate-900 mt-2">28 400 ₽</p>
-                      <p className="text-xs text-emerald-600 font-semibold mt-1">↑ +5% к прошлому периоду</p>
+                      <p className="text-2xl font-extrabold text-slate-900 mt-2">{analytics?.pharmacyRevenue ?? '—'}</p>
+                      <p className="text-xs text-slate-500 font-semibold mt-1">{analytics?.pharmacyDelta ?? 'Загрузка...'}</p>
                     </div>
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 bg-gradient-to-br from-cyan-900 to-slate-900 text-white">
                       <p className="text-xs font-semibold text-cyan-300 uppercase tracking-wider">Общая выручка клиники</p>
-                      <p className="text-2xl font-extrabold text-white mt-2">170 900 ₽</p>
+                      <p className="text-2xl font-extrabold text-white mt-2">{analytics?.totalRevenue ?? '—'}</p>
                       <p className="text-xs text-cyan-200 mt-1">Итого за выбранный период</p>
                     </div>
                   </div>
@@ -544,38 +576,35 @@ export default function App() {
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
                       <h4 className="font-bold text-slate-800 mb-4">Загруженность врачей и кабинетов</h4>
                       <div className="space-y-4">
-                        <div>
-                          <div className="flex justify-between text-xs font-semibold text-slate-600 mb-1">
-                            <span>Дмитрий Зубов (Кабинет №1)</span>
-                            <span>85% загрузки</span>
+                        {(analytics?.doctorLoad ?? []).map((doctor) => (
+                          <div key={doctor.name}>
+                            <div className="flex justify-between text-xs font-semibold text-slate-600 mb-1">
+                              <span>{doctor.name} ({doctor.room})</span>
+                              <span>{doctor.percent}% загрузки</span>
+                            </div>
+                            <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                              <div className="bg-cyan-600 h-full rounded-full" style={{ width: `${doctor.percent}%` }}></div>
+                            </div>
                           </div>
-                          <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                            <div className="bg-cyan-600 h-full rounded-full" style={{ width: '85%' }}></div>
-                          </div>
-                        </div>
-                        <div>
-                          <div className="flex justify-between text-xs font-semibold text-slate-600 mb-1">
-                            <span>Ольга Васильева (Кабинет №2)</span>
-                            <span>70% загрузки</span>
-                          </div>
-                          <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                            <div className="bg-emerald-500 h-full rounded-full" style={{ width: '70%' }}></div>
-                          </div>
-                        </div>
+                        ))}
+                        {(analytics?.doctorLoad ?? []).length === 0 && (
+                          <p className="text-sm text-slate-400">Нет данных по врачам за выбранный период.</p>
+                        )}
                       </div>
                     </div>
 
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
                       <h4 className="font-bold text-slate-800 mb-4">Топ популярных услуг и лекарств</h4>
                       <div className="space-y-3 text-sm">
-                        <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
-                          <span className="font-medium text-slate-700">1. Лечение кариеса</span>
-                          <span className="font-bold text-cyan-700">42 процедуры</span>
-                        </div>
-                        <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
-                          <span className="font-medium text-slate-700">2. Профессиональная гигиена</span>
-                          <span className="font-bold text-cyan-700">28 процедур</span>
-                        </div>
+                        {(analytics?.topServices ?? []).map((item, index) => (
+                          <div key={item.name} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
+                            <span className="font-medium text-slate-700">{index + 1}. {item.name}</span>
+                            <span className="font-bold text-cyan-700">{item.count}</span>
+                          </div>
+                        ))}
+                        {(analytics?.topServices ?? []).length === 0 && (
+                          <p className="text-sm text-slate-400">За выбранный период завершенных услуг нет.</p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -723,10 +752,7 @@ export default function App() {
                                 {openDropdownId === `room-${a.id}` && (
                                   <div className={`absolute left-0 ${openUpwards ? 'bottom-full mb-1' : 'mt-1'} w-40 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden z-30`}>
                                     {roomsList.map(room => (
-                                      <div key={room} onClick={() => {
-                                        setAppointments(appointments.map(item => item.id === a.id ? {...item, room} : item));
-                                        setOpenDropdownId(null);
-                                      }} className="px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-cyan-50 hover:text-cyan-700 cursor-pointer transition">
+                                      <div key={room} onClick={() => changeAppointment(a.id, { room })} className="px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-cyan-50 hover:text-cyan-700 cursor-pointer transition">
                                         {room}
                                       </div>
                                     ))}
@@ -757,10 +783,7 @@ export default function App() {
                                 {openDropdownId === `status-${a.id}` && (
                                   <div className={`absolute right-0 ${openUpwards ? 'bottom-full mb-1' : 'mt-1'} w-36 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden z-30`}>
                                     {statusesList.map(status => (
-                                      <div key={status} onClick={() => {
-                                        setAppointments(appointments.map(item => item.id === a.id ? {...item, status} : item));
-                                        setOpenDropdownId(null);
-                                      }} className="px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-cyan-50 hover:text-cyan-700 cursor-pointer transition">
+                                      <div key={status} onClick={() => changeAppointment(a.id, { status })} className="px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-cyan-50 hover:text-cyan-700 cursor-pointer transition">
                                         {status}
                                       </div>
                                     ))}
@@ -971,16 +994,29 @@ export default function App() {
                     </div>
                     <div className="flex gap-2">
                       <button 
-                        onClick={() => {
-                          setAppointments([...appointments, { id: Date.now(), patient: lead.patient, doctor: 'Дмитрий Зубов', time: '15:00', room: 'Кабинет №1', service: lead.service, status: 'Ожидает' }]);
-                          setOnlineLeads(onlineLeads.filter(l => l.id !== lead.id));
+                        onClick={async () => {
+                          try {
+                            await api.acceptLead(lead.id);
+                            await loadCore();
+                            setLoadError('');
+                          } catch (err) {
+                            setLoadError(err.message || 'Не удалось принять заявку');
+                          }
                         }}
                         className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-medium transition cursor-pointer"
                       >
                         Принять в расписание
                       </button>
                       <button 
-                        onClick={() => setOnlineLeads(onlineLeads.filter(l => l.id !== lead.id))}
+                        onClick={async () => {
+                          try {
+                            await api.deleteLead(lead.id);
+                            setOnlineLeads((prev) => prev.filter((item) => item.id !== lead.id));
+                            setLoadError('');
+                          } catch (err) {
+                            setLoadError(err.message || 'Не удалось удалить заявку');
+                          }
+                        }}
                         className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-medium transition cursor-pointer"
                       >
                         Удалить
@@ -1010,8 +1046,14 @@ export default function App() {
                       <span className="font-bold text-emerald-600">{p.stock} {p.unit}</span>
                       {role === 'admin' && (
                         <button 
-                          onClick={() => {
-                            setPharmacy(pharmacy.map(item => item.id === p.id ? {...item, stock: Math.max(0, item.stock - 1)} : item));
+                          onClick={async () => {
+                            try {
+                              const updated = await api.consumePharmacy(p.id);
+                              setPharmacy((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+                              setLoadError('');
+                            } catch (err) {
+                              setLoadError(err.message || 'Не удалось списать со склада');
+                            }
                           }}
                           className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 text-xs font-medium rounded-lg hover:bg-slate-100 transition shadow-sm cursor-pointer"
                         >
@@ -1047,7 +1089,14 @@ export default function App() {
               <h3 className="text-lg font-bold text-slate-800 mb-2">Оперативные отчеты администратора</h3>
               <p className="text-sm text-slate-500 mb-6">Сводка для передачи руководству</p>
               <button 
-                onClick={() => alert('Отчет администратора отправлен директору!')}
+                onClick={async () => {
+                  try {
+                    const report = await api.report();
+                    alert(report.message);
+                  } catch (err) {
+                    setLoadError(err.message || 'Не удалось отправить отчет');
+                  }
+                }}
                 className="w-fit px-5 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-sm font-medium transition cursor-pointer shadow-sm"
               >
                 Отправить текущий отчет директору

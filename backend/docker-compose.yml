@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: dental-crm-postgres
+    environment:
+      POSTGRES_USER: dental
+      POSTGRES_PASSWORD: dental
+      POSTGRES_DB: dental_crm
+      TZ: Europe/Moscow
+      PGTZ: Europe/Moscow
+    ports:
+      - "5433:5432"
+    volumes:
+      - dental_pg:/var/lib/postgresql/data
+
+volumes:
+  dental_pg:
